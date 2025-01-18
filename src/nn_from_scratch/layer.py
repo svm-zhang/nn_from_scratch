@@ -134,9 +134,9 @@ class Softmax(Layer):
 
     def backward(self, output_gradient, lr):
         # Assuming c classes
-        # self.output.shape = (c, 1)
+        # self.output.shape => (c, 1)
         n = self.output.size()  # number of reps for tiling next line
-        # m = (c, c)
+        # m => (c, c)
         m = np.tile(self.output, n)
         grad = np.dot(m * (np.identity(n) - m.T), output_gradient)
         """
@@ -150,20 +150,3 @@ class Softmax(Layer):
         """
         assert grad.shape == self.input.shape
         return grad
-
-
-class ReLU(Layer):
-    def __init__(self):
-        pass
-
-    def forward(self, input):
-        self.input = input
-        return np.maximum(0, input)
-
-    def backward(self, output_gradient, lr):
-        relu_grad = (self.input > 0).astype(self.input.dtype)
-        # print("I am in ReLU backward")
-        # print(f"{output_gradient.shape=}")
-        # print(f"{self.input.shape=}")
-        # element-wise multiply
-        return np.multiply(output_gradient, relu_grad)
