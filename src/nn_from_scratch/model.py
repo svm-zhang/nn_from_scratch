@@ -2,8 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .activation import ReLU, Softmax
-from .layer import Convolution, Dense, Reshape
+from .layer import Convolution, Dense, ReLU, Reshape
 from .loss import Loss
 
 
@@ -46,24 +45,23 @@ def train(
                 for layer in network:
                     output = layer.forward(output)
 
-                y_true_probs = Softmax._softmax(y)
-                my_loss = loss.loss(y_true_probs, output)
-
-                # tot_batch_error += loss.loss(y, output)
+                my_loss = loss.loss(y.argmax(), output)
                 tot_batch_error += my_loss
-
-                grad = loss.loss_prime(y_true_probs, output)
+                grad = loss.loss_prime(y.argmax(), output)
 
                 for layer in network[::-1]:
+                    # print(layer)
                     grad = layer.backward(grad, lr)
+                    # print(f"output gradient\n{grad=}\n{grad.shape}")
+                    # print("-" * 100)
 
             avg_batch_error = tot_batch_error / len(batch_x)
-            print(f"{e+1}/{epoches} {avg_batch_error=}")
+            print(f"ave_err {n_batch=} {avg_batch_error=}")
             tot_epoch_error += tot_batch_error
             n_batch += 1
         avg_epoch_error = tot_epoch_error / (n_batch * n_images_per_batch)
-        print(f"{e+1}/{epoches} {avg_epoch_error=}")
-        print("-" * 50)
+        print(f"ave_epoch_err={e+1}/{epoches} {avg_epoch_error=}")
+        print("-" * 100)
 
 
 def predict(network, input):
