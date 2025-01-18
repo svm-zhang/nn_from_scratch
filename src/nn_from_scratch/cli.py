@@ -8,7 +8,7 @@ def parse_cmd():
         "--dataset",
         metavar="STR",
         required=True,
-        choices=["mnist", "xor"],
+        choices=["mnist", "xor", "mnist_torch"],
         help="Specify the dataset to train and test on.",
     )
 
