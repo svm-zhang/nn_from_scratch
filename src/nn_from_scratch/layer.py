@@ -123,6 +123,35 @@ class Reshape(Layer):
         return np.reshape(output_gradient, self.input_shape)
 
 
+class Softmax(Layer):
+    def forward(self, input):
+        self.input = input
+        nominator = np.exp(self.input)  # vector
+        denominator = np.sum(nominator)  # scalar
+        self.output = nominator / denominator  # vector
+        assert self.output.shape == self.input.shape
+        return nominator / denominator
+
+    def backward(self, output_gradient, lr):
+        # Assuming c classes
+        # self.output.shape = (c, 1)
+        n = self.output.size()  # number of reps for tiling next line
+        # m = (c, c)
+        m = np.tile(self.output, n)
+        grad = np.dot(m * (np.identity(n) - m.T), output_gradient)
+        """
+            Remember the gradient propagates backwards
+            It is a gradient w.r.t self.input (x) => dL/dX = dy/dx * dL/dy
+            the latter term dL/dy is the output_gradient
+            the grad variable will become the dL/dy (output_gradient) for
+            the layer before.
+            As softmax layer usually the last layer and the layer before it
+            usually is a dense layer.
+        """
+        assert grad.shape == self.input.shape
+        return grad
+
+
 class ReLU(Layer):
     def __init__(self):
         pass
