@@ -7,8 +7,8 @@ import torch.nn.functional as F
 import torchvision
 from torchvision.transforms import v2
 
-from .activation import ReLU, Sigmoid
-from .layer import Convolution, Dense, Reshape
+from .activation import Sigmoid
+from .layer import Convolution, Dense, ReLU, Reshape
 from .loss import BCELoss, CELoss
 from .model import predict, train
 
@@ -95,19 +95,19 @@ def solve_mnist():
 
     network = [
         Convolution((1, 28, 28), kernel_size, n_kernel),
-        ReLU(),
         # Sigmoid(),
+        ReLU(),
         # Convolution((3, 24, 24), kernel_size, 1),
         Reshape((n_kernel, 26, 26), (n_kernel * 26 * 26, 1)),
         Dense(n_kernel * 26 * 26, 128),
         ReLU(),
-        # Sigmoid(),cnn
+        # Sigmoid(),
         Dense(128, 10),
         ReLU(),
         # Sigmoid(),
     ]
-    epoch = 20
-    lr = 0.0006
+    epoch = 120
+    lr = 0.001
 
     # loss = BCELoss()
     loss = CELoss()
