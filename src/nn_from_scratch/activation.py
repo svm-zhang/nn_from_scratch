@@ -13,8 +13,9 @@ class Activation(Layer):
         return self.f(self.input)
 
     def backward(self, output_gradient, lr: np.float32):
-        # For activation layer, I do not use lr to update parameters
+        # For activation layer, there are no parameters to train..
         _ = lr
+        # element-wise multiplication
         return np.multiply(output_gradient, self.f_prime(self.input))
 
 
@@ -57,27 +58,3 @@ class Sigmoid(Activation):
     def _sigmoid_prime(x):
         exp_neg_x = np.exp(-x)
         return exp_neg_x / ((1 + exp_neg_x) ** 2)
-
-
-class Softmax(Activation):
-    def __init__(self):
-        super().__init__(Softmax._softmax, Softmax._softmax_prime)
-
-    @staticmethod
-    def _softmax(x):
-        exp_x = np.exp(x - np.max(x))
-        return exp_x / np.sum(exp_x)
-
-    @staticmethod
-    def _softmax_prime(output):
-        return np.diag(output) - np.outer(output, output)
-
-    # def forward(self, input):
-    #     self.input = input
-    #     self.output = self._softmax(input)
-    #     return self.output
-    #
-    # def backward(self, output_gradient, lr: np.float32):
-    #     # For activation layer, I do not use lr to update parameters
-    #     jacobian = self._softmax_prime(self.output)
-    #     return np.dot(jacobian, output_gradient)
