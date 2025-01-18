@@ -1,5 +1,6 @@
 from .cli import parse_cmd
 from .mnist import solve_mnist
+from .torch_cnn import solve_mnist_with_torch
 from .xor import solve_xor
 
 
@@ -12,5 +13,7 @@ def run():
             solve_xor()
         case "mnist":
             solve_mnist()
+        case "mnist_torch":
+            solve_mnist_with_torch()
         case _:
             pass
