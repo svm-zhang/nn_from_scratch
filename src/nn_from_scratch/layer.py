@@ -18,33 +18,36 @@ class Layer(ABC):
 
 
 class Dense(Layer):
-    def __init__(self, input_size, output_size):
+    def __init__(self, batch_size, input_size, output_size):
         # self.weights = np.random.randn(output_size, input_size)  # w[j][i]
         # self.bias = np.random.randn(output_size, 1)
-        # self.weights = np.random.normal(
-        #     scale=1e-2, size=(output_size, input_size)
-        # )
         self.weights = self._he_init(input_size, output_size)
-        self.bias = np.zeros((output_size, 1))
+        self.bias = np.zeros((output_size, batch_size))
 
     def _he_init(self, input_size, output_size):
         stddev = np.sqrt(2.0 / input_size)
         return np.random.normal(0, stddev, (output_size, input_size))
 
+    def _random_normal_init(self, input_size, output_size):
+        return np.random.normal(0, 1, size=(output_size, input_size))
+
     def forward(self, input):
+        # input (input_size, b)
         self.input = input
-        return np.dot(self.weights, self.input) + self.bias
+        # (output_size, b) = (output_size, input_size) @ (input_size, b)
+        y = self.weights @ self.input + self.bias
+        return y
+        # return np.dot(self.weights, self.input) + self.bias
 
     def backward(self, output_gradient, lr):
-        # print("I am in Dense.backward")
-        # print(f"{output_gradient.shape=}")
-        # print(f"{self.input.shape=}")
-        # print(f"{self.weights.shape=}")
+        # (output_size, input_size) = (output_size, b) @ (b, input_size)
         w_gradient = np.dot(output_gradient, self.input.T)
         self.weights -= lr * w_gradient
         self.bias -= lr * output_gradient
-        # (output_size, input_size) @ (output_size, 1) => (input_size, 1)
-        return np.dot(self.weights.T, output_gradient)
+        # (input_size, b) = (input_size, output_size) @ (output_size, b)
+        input_gradient = self.weights.T @ output_gradient
+        return input_gradient
+        # return np.dot(self.weights.T, output_gradient)
 
 
 class Convolution(Layer):
