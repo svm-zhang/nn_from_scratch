@@ -152,7 +152,7 @@ class Softmax(Layer):
         return grad
 
 
-class BatchNormalization(Layer):
+class BatchNorm1D(Layer):
     def __init__(self, d: int, momentum: float = 0.1, eps=1e-6):
         self.gamma = np.ones(d)
         self.beta = np.zeros(d)
@@ -162,7 +162,6 @@ class BatchNormalization(Layer):
         self.eps = eps
 
     def forward(self, input, train=True):
-        _, d = input.shape
         self.input = input
         if train:
             mu = np.mean(input, axis=0, keepdims=True)
@@ -178,9 +177,22 @@ class BatchNormalization(Layer):
             mu = self.running_mu
             sigma = np.sqrt(self.running_var + self.eps)
             input_hat = (self.input - mu) / sigma
+        self.input_hat = input_hat
         output = input_hat * self.gamma + self.beta
         assert output.shape == input.shape
         return output
 
     def backward(self, output_gradient, lr):
-        pass
+        # local gradient for gamma
+        # gamma_gradient is essentially input_hat
+        gamma_gradient = self.input_hat
+        self.gamma -= lr * np.sum(output_gradient * gamma_gradient, axis=0)
+        # local gradient for beta
+        beta_gradient = 1 * output_gradient
+        self.beta -= lr * np.sum(beta_gradient, axis=0)
+        # return gradient w.r.t to input
+        input_gradient = np.multiply(
+            output_gradient, self.gamma / np.sqrt(self.running_var + self.eps)
+        )
+        assert input_gradient.shape == output_gradient.shape
+        return input_gradient
