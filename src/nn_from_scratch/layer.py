@@ -157,10 +157,10 @@ class Softmax(Layer):
 
 class BatchNorm1D(Layer):
     def __init__(self, d: int, momentum: float = 0.1, eps=1e-6):
-        self.gamma = np.ones(d)
-        self.beta = np.zeros(d)
-        self.running_mu = np.zeros(d)
-        self.running_var = np.zeros(d)
+        self.gamma = np.ones((d, 1))
+        self.beta = np.zeros((d, 1))
+        self.running_mu = np.zeros((d, 1))
+        self.running_var = np.zeros((d, 1))
         self.momentum = momentum
         self.eps = eps
 
