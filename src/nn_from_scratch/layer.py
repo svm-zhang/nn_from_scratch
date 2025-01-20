@@ -18,11 +18,12 @@ class Layer(ABC):
 
 
 class Dense(Layer):
-    def __init__(self, batch_size, input_size, output_size):
-        # self.weights = np.random.randn(output_size, input_size)  # w[j][i]
-        # self.bias = np.random.randn(output_size, 1)
+    def __init__(self, input_size, output_size):
+        # weights: (output_size, input_size)
         self.weights = self._he_init(input_size, output_size)
-        self.bias = np.zeros((output_size, batch_size))
+        # self.bias = np.zeros((output_size, batch_size))
+        # bias: (b, output_size)
+        self.bias = np.zeros((1, output_size))
 
     def _he_init(self, input_size, output_size):
         stddev = np.sqrt(2.0 / input_size)
@@ -31,21 +32,28 @@ class Dense(Layer):
     def _random_normal_init(self, input_size, output_size):
         return np.random.normal(0, 1, size=(output_size, input_size))
 
+    def _random_init(self, input_size, output_size):
+        self.weights = np.random.randn(output_size, input_size)  # w[j][i]
+        self.bias = np.random.randn(output_size, 1)
+
     def forward(self, input):
-        # input (input_size, b)
+        # input (b, input_size)
         self.input = input
-        # (output_size, b) = (output_size, input_size) @ (input_size, b)
-        y = self.weights @ self.input + self.bias
+        # (b, output_size) = (b, input_size) @ (output_size, input_size).T
+        y = self.input @ self.weights.T + self.bias
         return y
         # return np.dot(self.weights, self.input) + self.bias
 
     def backward(self, output_gradient, lr):
+        # output_gradient: (b, output_size)
         # (output_size, input_size) = (output_size, b) @ (b, input_size)
-        w_gradient = np.dot(output_gradient, self.input.T)
+        # w_gradient = np.dot(output_gradient, self.input)
+        w_gradient = output_gradient.T @ self.input
+        b_gradient = np.sum(output_gradient, axis=0, keepdims=True)
         self.weights -= lr * w_gradient
-        self.bias -= lr * output_gradient
-        # (input_size, b) = (input_size, output_size) @ (output_size, b)
-        input_gradient = self.weights.T @ output_gradient
+        self.bias -= lr * b_gradient
+        # (b, input_size) = (b, output_size) @ (output_size, input_size)
+        input_gradient = output_gradient @ self.weights
         return input_gradient
         # return np.dot(self.weights.T, output_gradient)
 
@@ -61,17 +69,15 @@ class Convolution(Layer):
             input_height - kernel_size + 1,
             input_width - kernel_size + 1,
         )
+        self.kernel_size = kernel_size
         self.kernel_shape = (
             self.depth,
             self.input_depth,
             kernel_size,
             kernel_size,
         )
-        # self.kernels = np.random.rand(*self.kernel_shape)
-        # self.kernels = np.random.normal(scale=1e-2, size=self.kernel_shape)
         self.kernels = self._he_init(*self.kernel_shape)
         self.biases = np.zeros(self.output_shape)
-        # self.biases = np.random.rand(*self.output_shape)
 
     def _he_init(self, depth, input_depth, kernel_height, kernel_width):
         fan_in = input_depth * kernel_height * kernel_width  # Calculate fan-in
@@ -87,30 +93,49 @@ class Convolution(Layer):
     def forward(self, input):
         # Y = B + X * K
         self.input = input
-        self.output = np.copy(self.biases)
-        for i in range(self.depth):
-            for j in range(self.input_depth):
-                self.output[i] += signal.correlate2d(
-                    self.input[j], self.kernels[i, j], mode="valid"
-                )
+        # print("input shape", input.shape)
+        # self.output = np.copy(self.biases)
+        batch_size = input.shape[0]
+        _, h, w = self.input_shape
+        output_shape = (
+            batch_size,
+            self.depth,
+            h - self.kernel_size + 1,
+            w - self.kernel_size + 1,
+        )
+        self.output = np.zeros(output_shape)
+        # print(self.output.shape)
+        for b in range(input.shape[0]):  # first dimension is the batch_size
+            for i in range(self.depth):
+                self.output[b, i] = self.biases[i]
+                for j in range(self.input_depth):
+                    cross_correlation = signal.correlate2d(
+                        self.input[b, j], self.kernels[i, j], mode="valid"
+                    )
+                    self.output[b, i] += cross_correlation
         return self.output
 
     def backward(self, output_gradient, lr):
+        # (cout, cin, k, k)
         kernel_grad = np.zeros(self.kernel_shape)
-        input_grad = np.zeros(self.input_shape)
+        bias_grad = np.zeros(self.output_shape)
+        # (b, cin, h, w)
+        input_grad = np.zeros(self.input.shape)
+        batch_size = self.input_shape[0]
 
-        for i in range(self.depth):
-            for j in range(self.input_depth):
-                kernel_grad[i, j] = signal.correlate2d(
-                    self.input[j], output_gradient[i], mode="valid"
-                )
-                input_grad[j] += signal.convolve2d(
-                    output_gradient[i], self.kernels[i, j], mode="full"
-                )
+        for b in range(batch_size):
+            for i in range(self.depth):
+                for j in range(self.input_depth):
+                    kernel_grad[i, j] += signal.correlate2d(
+                        self.input[b, j], output_gradient[b, i], mode="valid"
+                    )
+                    bias_grad[i] += output_gradient[b, i]
+                    input_grad[b, j] += signal.convolve2d(
+                        output_gradient[b, i], self.kernels[i, j], mode="full"
+                    )
 
         self.kernels -= lr * kernel_grad
-        self.biases -= lr * output_gradient
-
+        self.biases -= lr * bias_grad
         return input_grad
 
 
@@ -120,17 +145,21 @@ class Reshape(Layer):
         self.output_shape = output_shape
 
     def forward(self, input):
-        return np.reshape(input, self.output_shape)
+        return np.reshape(input, (input.shape[0], self.output_shape))
 
     def backward(self, output_gradient, lr):
-        return np.reshape(output_gradient, self.input_shape)
+        _ = lr
+        batch_size = output_gradient.shape[0]
+        cout, h, w = self.input_shape
+        output_shape = (batch_size, cout, h, w)
+        return np.reshape(output_gradient, output_shape)
 
 
 class Softmax(Layer):
     def forward(self, input):
         self.input = input
         nominator = np.exp(self.input)  # vector
-        denominator = np.sum(nominator)  # scalar
+        denominator = np.sum(nominator, axis=-1, keepdims=True)  # scalar
         self.output = nominator / denominator  # vector
         assert self.output.shape == self.input.shape
         return nominator / denominator
@@ -157,10 +186,10 @@ class Softmax(Layer):
 
 class BatchNorm1D(Layer):
     def __init__(self, d: int, momentum: float = 0.1, eps=1e-6):
-        self.gamma = np.ones((d, 1))
-        self.beta = np.zeros((d, 1))
-        self.running_mu = np.zeros((d, 1))
-        self.running_var = np.zeros((d, 1))
+        self.gamma = np.ones((1, d))
+        self.beta = np.zeros((1, d))
+        self.running_mu = np.zeros((1, d))
+        self.running_var = np.zeros((1, d))
         self.momentum = momentum
         self.eps = eps
 
