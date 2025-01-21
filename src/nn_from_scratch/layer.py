@@ -69,12 +69,12 @@ class Convolution(Layer):
         input_depth, input_height, input_width = input_shape
         self.padding_x = padding
         self.padding_y = padding
-        h = input_height + self.padding_x * 2 - kernel_size + 1
-        w = input_width + self.padding_y * 2 - kernel_size + 1
         self.depth = depth  # number of kernels / outputs
         self.input_depth = input_depth
-        self.input_shape = (input_depth, h, w)
-        self.output_shape = (depth, h, w)
+        # output height and width accounting for padding
+        o_h = input_height + self.padding_x * 2 - kernel_size + 1
+        o_w = input_width + self.padding_y * 2 - kernel_size + 1
+        self.output_shape = (depth, o_h, o_w)
         self.kernel_size = kernel_size
         self.kernel_shape = (
             self.depth,
@@ -98,7 +98,7 @@ class Convolution(Layer):
 
     def forward(self, input):
         # Y = B + X * K
-        batch_size = input.shape[0]
+        self.batch_size = input.shape[0]
         self.input = input
         input = np.pad(
             input,
@@ -111,9 +111,9 @@ class Convolution(Layer):
             mode="constant",
             constant_values=0,
         )
-        output_shape = (batch_size, *self.output_shape)
+        output_shape = (self.batch_size, *self.output_shape)
         self.output = np.zeros(output_shape)
-        for b in range(input.shape[0]):  # first dimension is the batch_size
+        for b in range(self.batch_size):  # first dimension is the batch_size
             for i in range(self.depth):
                 self.output[b, i] = self.biases[i]
                 for j in range(self.input_depth):
@@ -129,9 +129,8 @@ class Convolution(Layer):
         bias_grad = np.zeros(self.output_shape)
         # (b, cin, h, w)
         input_grad = np.zeros(self.input.shape)
-        batch_size = self.input_shape[0]
 
-        for b in range(batch_size):
+        for b in range(self.batch_size):
             for i in range(self.depth):
                 for j in range(self.input_depth):
                     kernel_grad[i, j] += signal.correlate2d(
