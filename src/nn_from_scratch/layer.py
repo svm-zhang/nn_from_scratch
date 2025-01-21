@@ -4,6 +4,13 @@ from typing import Any
 import numpy as np
 from scipy import signal
 
+# TODO:
+# 1. Add padding. [DONE]
+# 2. Max pooling
+# 3. BatchNormalization2D
+# 4. Adam SGD
+# 5. Use np.float32 [DONE]
+
 
 class Layer(ABC):
     def __init__(self, *kwargs):
@@ -20,10 +27,11 @@ class Layer(ABC):
 class Dense(Layer):
     def __init__(self, input_size, output_size):
         # weights: (output_size, input_size)
-        self.weights = self._he_init(input_size, output_size)
-        # self.bias = np.zeros((output_size, batch_size))
+        self.weights = self._he_init(input_size, output_size).astype(
+            np.float32
+        )
         # bias: (b, output_size)
-        self.bias = np.zeros((1, output_size))
+        self.bias = np.zeros((1, output_size)).astype(np.float32)
 
     def _he_init(self, input_size, output_size):
         stddev = np.sqrt(2.0 / input_size)
@@ -42,7 +50,6 @@ class Dense(Layer):
         # (b, output_size) = (b, input_size) @ (output_size, input_size).T
         y = self.input @ self.weights.T + self.bias
         return y
-        # return np.dot(self.weights, self.input) + self.bias
 
     def backward(self, output_gradient, lr):
         # output_gradient: (b, output_size)
@@ -55,20 +62,19 @@ class Dense(Layer):
         # (b, input_size) = (b, output_size) @ (output_size, input_size)
         input_gradient = output_gradient @ self.weights
         return input_gradient
-        # return np.dot(self.weights.T, output_gradient)
 
 
 class Convolution(Layer):
-    def __init__(self, input_shape, kernel_size, depth):
+    def __init__(self, input_shape, kernel_size, depth, padding: int = 0):
         input_depth, input_height, input_width = input_shape
+        self.padding_x = padding
+        self.padding_y = padding
+        h = input_height + self.padding_x * 2 - kernel_size + 1
+        w = input_width + self.padding_y * 2 - kernel_size + 1
         self.depth = depth  # number of kernels / outputs
-        self.input_shape = input_shape
         self.input_depth = input_depth
-        self.output_shape = (
-            depth,
-            input_height - kernel_size + 1,
-            input_width - kernel_size + 1,
-        )
+        self.input_shape = (input_depth, h, w)
+        self.output_shape = (depth, h, w)
         self.kernel_size = kernel_size
         self.kernel_shape = (
             self.depth,
@@ -76,8 +82,8 @@ class Convolution(Layer):
             kernel_size,
             kernel_size,
         )
-        self.kernels = self._he_init(*self.kernel_shape)
-        self.biases = np.zeros(self.output_shape)
+        self.kernels = self._he_init(*self.kernel_shape).astype(np.float32)
+        self.biases = np.zeros(self.output_shape).astype(np.float32)
 
     def _he_init(self, depth, input_depth, kernel_height, kernel_width):
         fan_in = input_depth * kernel_height * kernel_width  # Calculate fan-in
@@ -92,25 +98,27 @@ class Convolution(Layer):
 
     def forward(self, input):
         # Y = B + X * K
-        self.input = input
-        # print("input shape", input.shape)
-        # self.output = np.copy(self.biases)
         batch_size = input.shape[0]
-        _, h, w = self.input_shape
-        output_shape = (
-            batch_size,
-            self.depth,
-            h - self.kernel_size + 1,
-            w - self.kernel_size + 1,
+        self.input = input
+        input = np.pad(
+            input,
+            pad_width=(
+                (0, 0),
+                (0, 0),
+                (self.padding_x, self.padding_x),
+                (self.padding_y, self.padding_y),
+            ),
+            mode="constant",
+            constant_values=0,
         )
+        output_shape = (batch_size, *self.output_shape)
         self.output = np.zeros(output_shape)
-        # print(self.output.shape)
         for b in range(input.shape[0]):  # first dimension is the batch_size
             for i in range(self.depth):
                 self.output[b, i] = self.biases[i]
                 for j in range(self.input_depth):
                     cross_correlation = signal.correlate2d(
-                        self.input[b, j], self.kernels[i, j], mode="valid"
+                        input[b, j], self.kernels[i, j], mode="valid"
                     )
                     self.output[b, i] += cross_correlation
         return self.output
@@ -130,9 +138,15 @@ class Convolution(Layer):
                         self.input[b, j], output_gradient[b, i], mode="valid"
                     )
                     bias_grad[i] += output_gradient[b, i]
-                    input_grad[b, j] += signal.convolve2d(
+                    full_convolve = signal.convolve2d(
                         output_gradient[b, i], self.kernels[i, j], mode="full"
                     )
+                    if self.padding_x != 0:
+                        full_convolve = full_convolve[
+                            self.padding_x : -self.padding_x,
+                            self.padding_y : -self.padding_y,
+                        ]
+                    input_grad[b, j] += full_convolve
 
         self.kernels -= lr * kernel_grad
         self.biases -= lr * bias_grad
@@ -186,10 +200,10 @@ class Softmax(Layer):
 
 class BatchNorm1D(Layer):
     def __init__(self, d: int, momentum: float = 0.1, eps=1e-6):
-        self.gamma = np.ones((1, d))
-        self.beta = np.zeros((1, d))
-        self.running_mu = np.zeros((1, d))
-        self.running_var = np.zeros((1, d))
+        self.gamma = np.ones((1, d)).astype(np.float32)
+        self.beta = np.zeros((1, d)).astype(np.float32)
+        self.running_mu = np.zeros((1, d)).astype(np.float32)
+        self.running_var = np.zeros((1, d)).astype(np.float32)
         self.momentum = momentum
         self.eps = eps
 
