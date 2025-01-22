@@ -10,6 +10,7 @@ from scipy import signal
 # 3. BatchNormalization2D
 # 4. Adam SGD
 # 5. Use np.float32 [DONE]
+# 6. SGD with momentum [DONE]
 
 
 class Layer(ABC):
@@ -21,7 +22,7 @@ class Layer(ABC):
     def forward(self, input) -> Any: ...
 
     @abstractmethod
-    def backward(self, output_gradient, lr) -> Any: ...
+    def backward(self, output_gradient, lr, betas) -> Any: ...
 
 
 class Dense(Layer):
@@ -32,6 +33,7 @@ class Dense(Layer):
         )
         # bias: (b, output_size)
         self.bias = np.zeros((1, output_size)).astype(np.float32)
+        self.t = 0
 
     def _he_init(self, input_size, output_size):
         stddev = np.sqrt(2.0 / input_size)
@@ -51,14 +53,35 @@ class Dense(Layer):
         y = self.input @ self.weights.T + self.bias
         return y
 
-    def backward(self, output_gradient, lr):
+    def _adam(self, grad, lr, betas) -> np.ndarray:
+        pass
+
+    def _sgd_momentum(self, grad_1, grad_2, lr, beta):
+        if self.t == 0:
+            self.v_w = np.zeros_like(self.weights)
+            self.v_b = np.zeros_like(self.bias)
+        self.t += 1
+        self.v_w = beta * self.v_w + grad_1
+        self.v_b = beta * self.v_b + grad_2
+        self.weights -= lr * self.v_w
+        self.bias -= lr * self.v_b
+
+    def backward(self, output_gradient, lr, betas=(0.9, 0)):
         # output_gradient: (b, output_size)
         # (output_size, input_size) = (output_size, b) @ (b, input_size)
         # w_gradient = np.dot(output_gradient, self.input)
         w_gradient = output_gradient.T @ self.input
         b_gradient = np.sum(output_gradient, axis=0, keepdims=True)
-        self.weights -= lr * w_gradient
-        self.bias -= lr * b_gradient
+        if all(betas) > 0.0:  # adam
+            self.weights -= self._adam(w_gradient, lr, betas)
+            self.bias -= self._adam(b_gradient, lr, betas)
+        elif betas[0] > 0 and betas[1] == 0:
+            self._sgd_momentum(w_gradient, b_gradient, lr, betas[0])
+        else:
+            raise ValueError(f"betas value error: {betas}")
+
+        # self.weights -= lr * w_gradient
+        # self.bias -= lr * b_gradient
         # (b, input_size) = (b, output_size) @ (output_size, input_size)
         input_gradient = output_gradient @ self.weights
         return input_gradient
@@ -84,6 +107,7 @@ class Convolution(Layer):
         )
         self.kernels = self._he_init(*self.kernel_shape).astype(np.float32)
         self.biases = np.zeros(self.output_shape).astype(np.float32)
+        self.t = 0
 
     def _he_init(self, depth, input_depth, kernel_height, kernel_width):
         fan_in = input_depth * kernel_height * kernel_width  # Calculate fan-in
@@ -123,7 +147,20 @@ class Convolution(Layer):
                     self.output[b, i] += cross_correlation
         return self.output
 
-    def backward(self, output_gradient, lr):
+    def _adam(self, grad_1, grad_2, lr, betas):
+        pass
+
+    def _sgd_momentum(self, grad_1, grad_2, lr, beta):
+        if self.t == 0:
+            self.v_w = np.zeros_like(self.kernels)
+            self.v_b = np.zeros_like(self.biases)
+        self.t += 1
+        self.v_w = beta * self.v_w + grad_1
+        self.v_b = beta * self.v_b + grad_2
+        self.kernels -= lr * self.v_w
+        self.biases -= lr * self.v_b
+
+    def backward(self, output_gradient, lr, betas=(0.9, 0)):
         # (cout, cin, k, k)
         kernel_grad = np.zeros(self.kernel_shape)
         bias_grad = np.zeros(self.output_shape)
@@ -146,9 +183,15 @@ class Convolution(Layer):
                             self.padding_y : -self.padding_y,
                         ]
                     input_grad[b, j] += full_convolve
+        if all(betas) > 0.0:  # adam
+            self._adam(kernel_grad, bias_grad, lr, betas)
+        elif betas[0] > 0 and betas[1] == 0:
+            self._sgd_momentum(kernel_grad, bias_grad, lr, betas[0])
+        else:
+            raise ValueError(f"betas value error: {betas}")
 
-        self.kernels -= lr * kernel_grad
-        self.biases -= lr * bias_grad
+        # self.kernels -= lr * kernel_grad
+        # self.biases -= lr * bias_grad
         return input_grad
 
 
@@ -227,7 +270,7 @@ class BatchNorm1D(Layer):
         assert output.shape == input.shape
         return output
 
-    def backward(self, output_gradient, lr):
+    def backward(self, output_gradient, lr, betas=(0.9, 0)):
         # local gradient for gamma
         # gamma_gradient is essentially input_hat
         gamma_gradient = self.input_hat
