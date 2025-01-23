@@ -13,6 +13,43 @@ from scipy import signal
 # 6. SGD with momentum [DONE]
 
 
+class Parameter:
+    def __init__(self, key, value, requires_grad):
+        self._key = key
+        self._value = value
+        self._grad = None
+        if requires_grad:
+            self._grad = np.zeros_like(self._value).astype(value.dtype)
+
+    def zero_grad(self):
+        if self._grad is not None:
+            self._grad = np.zeros_like(self._grad).astype(self.value.dtype)
+
+    @property
+    def key(self) -> str:
+        return self._key
+
+    @property
+    def value(self) -> np.ndarray:
+        return self._value
+
+    @property
+    def grad(self) -> np.ndarray | None:
+        return self._grad
+
+    @grad.setter
+    def grad(self, v):
+        if self._grad is None:
+            return
+        assert v.shape == self._grad.shape
+        self._grad = v
+
+    @value.setter
+    def value(self, v) -> None:
+        assert v.shape == self._value.shape
+        self._value = v
+
+
 class Layer(ABC):
     def __init__(self, *kwargs):
         self.input = None
@@ -22,68 +59,64 @@ class Layer(ABC):
     def forward(self, input) -> Any: ...
 
     @abstractmethod
-    def backward(self, output_gradient, lr, betas) -> Any: ...
+    def backward(self, output_gradient) -> Any: ...
+
+    @abstractmethod
+    def parameters(self) -> list[Parameter] | None: ...
 
 
 class Dense(Layer):
     def __init__(self, input_size, output_size):
         # weights: (output_size, input_size)
-        self.weights = self._he_init(input_size, output_size).astype(
-            np.float32
+        self._weights: Parameter = Parameter(
+            "weights",
+            self._he_init(input_size, output_size).astype(np.float32),
+            requires_grad=True,
         )
         # bias: (b, output_size)
-        self.bias = np.zeros((1, output_size)).astype(np.float32)
-        self.t = 0
+        self._bias: Parameter = Parameter(
+            "bias",
+            np.zeros((1, output_size)).astype(np.float32),
+            requires_grad=True,
+        )
 
     def _he_init(self, input_size, output_size):
         stddev = np.sqrt(2.0 / input_size)
         return np.random.normal(0, stddev, (output_size, input_size))
 
-    def _random_normal_init(self, input_size, output_size):
-        return np.random.normal(0, 1, size=(output_size, input_size))
+    # def _random_normal_init(self, input_size, output_size):
+    #     return np.random.normal(0, 1, size=(output_size, input_size))
+    #
+    # def _random_init(self, input_size, output_size):
+    #     self.weights = np.random.randn(output_size, input_size)  # w[j][i]
+    #     self.bias = np.random.randn(output_size, 1)
 
-    def _random_init(self, input_size, output_size):
-        self.weights = np.random.randn(output_size, input_size)  # w[j][i]
-        self.bias = np.random.randn(output_size, 1)
+    @property
+    def weights(self) -> Parameter:
+        return self._weights
+
+    @property
+    def bias(self) -> Parameter:
+        return self._bias
+
+    def parameters(self) -> list[Parameter]:
+        return [self.weights, self.bias]
 
     def forward(self, input):
         # input (b, input_size)
         self.input = input
         # (b, output_size) = (b, input_size) @ (output_size, input_size).T
-        y = self.input @ self.weights.T + self.bias
+        y = self.input @ self.weights.value.T + self.bias.value
         return y
 
-    def _adam(self, grad, lr, betas) -> np.ndarray:
-        pass
-
-    def _sgd_momentum(self, grad_1, grad_2, lr, beta):
-        if self.t == 0:
-            self.v_w = np.zeros_like(self.weights)
-            self.v_b = np.zeros_like(self.bias)
-        self.t += 1
-        self.v_w = beta * self.v_w + grad_1
-        self.v_b = beta * self.v_b + grad_2
-        self.weights -= lr * self.v_w
-        self.bias -= lr * self.v_b
-
-    def backward(self, output_gradient, lr, betas=(0.9, 0)):
+    def backward(self, output_gradient):
         # output_gradient: (b, output_size)
         # (output_size, input_size) = (output_size, b) @ (b, input_size)
-        # w_gradient = np.dot(output_gradient, self.input)
-        w_gradient = output_gradient.T @ self.input
-        b_gradient = np.sum(output_gradient, axis=0, keepdims=True)
-        if all(betas) > 0.0:  # adam
-            self.weights -= self._adam(w_gradient, lr, betas)
-            self.bias -= self._adam(b_gradient, lr, betas)
-        elif betas[0] > 0 and betas[1] == 0:
-            self._sgd_momentum(w_gradient, b_gradient, lr, betas[0])
-        else:
-            raise ValueError(f"betas value error: {betas}")
+        input_gradient = output_gradient @ self.weights.value
+        self.weights.grad = output_gradient.T @ self.input
+        self.bias.grad = np.sum(output_gradient, axis=0, keepdims=True)
 
-        # self.weights -= lr * w_gradient
-        # self.bias -= lr * b_gradient
         # (b, input_size) = (b, output_size) @ (output_size, input_size)
-        input_gradient = output_gradient @ self.weights
         return input_gradient
 
 
@@ -105,9 +138,16 @@ class Convolution(Layer):
             kernel_size,
             kernel_size,
         )
-        self.kernels = self._he_init(*self.kernel_shape).astype(np.float32)
-        self.biases = np.zeros(self.output_shape).astype(np.float32)
-        self.t = 0
+        self.weights = Parameter(
+            "weights",
+            self._he_init(*self.kernel_shape).astype(np.float32),
+            requires_grad=True,
+        )
+        self.bias = Parameter(
+            "bias",
+            np.zeros(self.output_shape).astype(np.float32),
+            requires_grad=True,
+        )
 
     def _he_init(self, depth, input_depth, kernel_height, kernel_width):
         fan_in = input_depth * kernel_height * kernel_width  # Calculate fan-in
@@ -119,6 +159,9 @@ class Convolution(Layer):
             stddev,
             (depth, input_depth, kernel_height, kernel_width),
         )  # Normal distribution
+
+    def parameters(self) -> list[Parameter]:
+        return [self.weights, self.bias]
 
     def forward(self, input):
         # Y = B + X * K
@@ -139,43 +182,34 @@ class Convolution(Layer):
         self.output = np.zeros(output_shape)
         for b in range(self.batch_size):  # first dimension is the batch_size
             for i in range(self.depth):
-                self.output[b, i] = self.biases[i]
+                self.output[b, i] = self.bias.value[i]
                 for j in range(self.input_depth):
                     cross_correlation = signal.correlate2d(
-                        input[b, j], self.kernels[i, j], mode="valid"
+                        input[b, j], self.weights.value[i, j], mode="valid"
                     )
                     self.output[b, i] += cross_correlation
         return self.output
 
-    def _adam(self, grad_1, grad_2, lr, betas):
-        pass
-
-    def _sgd_momentum(self, grad_1, grad_2, lr, beta):
-        if self.t == 0:
-            self.v_w = np.zeros_like(self.kernels)
-            self.v_b = np.zeros_like(self.biases)
-        self.t += 1
-        self.v_w = beta * self.v_w + grad_1
-        self.v_b = beta * self.v_b + grad_2
-        self.kernels -= lr * self.v_w
-        self.biases -= lr * self.v_b
-
-    def backward(self, output_gradient, lr, betas=(0.9, 0)):
+    def backward(self, output_gradient):
         # (cout, cin, k, k)
         kernel_grad = np.zeros(self.kernel_shape)
         bias_grad = np.zeros(self.output_shape)
         # (b, cin, h, w)
         input_grad = np.zeros(self.input.shape)
 
+        assert self.weights.grad is not None
+        assert self.bias.grad is not None
         for b in range(self.batch_size):
             for i in range(self.depth):
                 for j in range(self.input_depth):
-                    kernel_grad[i, j] += signal.correlate2d(
+                    self.weights.grad[i, j] += signal.correlate2d(
                         self.input[b, j], output_gradient[b, i], mode="valid"
                     )
-                    bias_grad[i] += output_gradient[b, i]
+                    self.bias.grad[i] += output_gradient[b, i]
                     full_convolve = signal.convolve2d(
-                        output_gradient[b, i], self.kernels[i, j], mode="full"
+                        output_gradient[b, i],
+                        self.weights.value[i, j],
+                        mode="full",
                     )
                     if self.padding_x != 0:
                         full_convolve = full_convolve[
@@ -183,15 +217,7 @@ class Convolution(Layer):
                             self.padding_y : -self.padding_y,
                         ]
                     input_grad[b, j] += full_convolve
-        if all(betas) > 0.0:  # adam
-            self._adam(kernel_grad, bias_grad, lr, betas)
-        elif betas[0] > 0 and betas[1] == 0:
-            self._sgd_momentum(kernel_grad, bias_grad, lr, betas[0])
-        else:
-            raise ValueError(f"betas value error: {betas}")
 
-        # self.kernels -= lr * kernel_grad
-        # self.biases -= lr * bias_grad
         return input_grad
 
 
@@ -200,11 +226,13 @@ class Reshape(Layer):
         self.input_shape = input_shape
         self.output_shape = output_shape
 
+    def parameters(self) -> None:
+        pass
+
     def forward(self, input):
         return np.reshape(input, (input.shape[0], self.output_shape))
 
-    def backward(self, output_gradient, lr):
-        _ = lr
+    def backward(self, output_gradient):
         batch_size = output_gradient.shape[0]
         cout, h, w = self.input_shape
         output_shape = (batch_size, cout, h, w)
@@ -212,6 +240,9 @@ class Reshape(Layer):
 
 
 class Softmax(Layer):
+    def parameters(self) -> None:
+        pass
+
     def forward(self, input):
         self.input = input
         nominator = np.exp(self.input)  # vector
@@ -220,7 +251,7 @@ class Softmax(Layer):
         assert self.output.shape == self.input.shape
         return nominator / denominator
 
-    def backward(self, output_gradient, lr):
+    def backward(self, output_gradient):
         # Assuming c classes
         # self.output.shape => (c, 1)
         n = self.output.size()  # number of reps for tiling next line
@@ -242,12 +273,31 @@ class Softmax(Layer):
 
 class BatchNorm1D(Layer):
     def __init__(self, d: int, momentum: float = 0.1, eps=1e-6):
-        self.gamma = np.ones((1, d)).astype(np.float32)
-        self.beta = np.zeros((1, d)).astype(np.float32)
-        self.running_mu = np.zeros((1, d)).astype(np.float32)
-        self.running_var = np.zeros((1, d)).astype(np.float32)
+        self.gamma = Parameter(
+            "gamma", np.ones((1, d)).astype(np.float32), requires_grad=True
+        )
+        self.beta = Parameter(
+            "beta", np.zeros((1, d)).astype(np.float32), requires_grad=True
+        )
+        self.running_mu = Parameter(
+            "running_mu",
+            np.zeros((1, d)).astype(np.float32),
+            requires_grad=False,
+        )
+        self.running_var = Parameter(
+            "running_var",
+            np.zeros((1, d)).astype(np.float32),
+            requires_grad=False,
+        )
+        # self.gamma = np.ones((1, d)).astype(np.float32)
+        # self.beta = np.zeros((1, d)).astype(np.float32)
+        # self.running_mu = np.zeros((1, d)).astype(np.float32)
+        # self.running_var = np.zeros((1, d)).astype(np.float32)
         self.momentum = momentum
         self.eps = eps
+
+    def parameters(self) -> list[Parameter]:
+        return [self.gamma, self.beta, self.running_mu, self.running_var]
 
     def forward(self, input, train=True):
         self.input = input
@@ -255,32 +305,33 @@ class BatchNorm1D(Layer):
             mu = np.mean(input, axis=0, keepdims=True)
             sigma = np.sqrt(np.var(input, axis=0, keepdims=True) + self.eps)
             input_hat = (self.input - mu) / sigma
-            self.running_mu = (
+            self.running_mu.value = (
                 1 - self.momentum
-            ) * self.running_mu + self.momentum * mu
-            self.running_var = (
+            ) * self.running_mu.value + self.momentum * mu
+            self.running_var.value = (
                 1 - self.momentum
-            ) * self.running_var + self.momentum * (sigma**2)
+            ) * self.running_var.value + self.momentum * (sigma**2)
         else:
-            mu = self.running_mu
-            sigma = np.sqrt(self.running_var + self.eps)
+            mu = self.running_mu.value
+            sigma = np.sqrt(self.running_var.value + self.eps)
             input_hat = (self.input - mu) / sigma
         self.input_hat = input_hat
-        output = input_hat * self.gamma + self.beta
+        output = input_hat * self.gamma.value + self.beta.value
         assert output.shape == input.shape
         return output
 
-    def backward(self, output_gradient, lr, betas=(0.9, 0)):
-        # local gradient for gamma
-        # gamma_gradient is essentially input_hat
-        gamma_gradient = self.input_hat
-        self.gamma -= lr * np.sum(output_gradient * gamma_gradient, axis=0)
-        # local gradient for beta
-        beta_gradient = 1 * output_gradient
-        self.beta -= lr * np.sum(beta_gradient, axis=0)
-        # return gradient w.r.t to input
+    def backward(self, output_gradient):
         input_gradient = np.multiply(
-            output_gradient, self.gamma / np.sqrt(self.running_var + self.eps)
+            output_gradient,
+            self.gamma.value / np.sqrt(self.running_var.value + self.eps),
         )
         assert input_gradient.shape == output_gradient.shape
+        # local gradient for gamma
+        # gamma_gradient is essentially input_hat
+        self.gamma.grad = np.sum(
+            output_gradient * self.input_hat, axis=0, keepdims=True
+        )
+        # local gradient for beta
+        self.beta.grad = np.sum(output_gradient, axis=0, keepdims=True)
+        # return gradient w.r.t to input
         return input_gradient
