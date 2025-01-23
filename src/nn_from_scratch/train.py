@@ -8,10 +8,10 @@ from .loss import Loss
 def train(
     train_loader,
     val_loader,
-    network,
+    model,
+    optimizer,
     loss_fn: Loss,
     epoches: int = 100,
-    lr: float = 0.1,
 ):
     for e in range(epoches):
         tot_epoch_error = 0
@@ -20,14 +20,13 @@ def train(
         for batch in batch_iterator:
             batch_x = np.stack([train_loader.ds[idx][0] for idx in batch])
             batch_y = np.stack([train_loader.ds[idx][1] for idx in batch])
-            output = batch_x
-            for layer in network:
-                output = layer.forward(output)
+            optimizer.zero_grad()
+            output = model.train(batch_x)
             batch_y_true_idx = batch_y.argmax(axis=1)
             loss = loss_fn.loss(batch_y_true_idx, output)
             grad = loss_fn.loss_prime(batch_y_true_idx, output)
-            for layer in network[::-1]:
-                grad = layer.backward(grad, lr)
+            model.backward(grad)
+            optimizer.step()
             assert isinstance(grad, np.ndarray)
             batch_tot_loss = np.sum(loss, axis=-1)
             tot_epoch_error += np.sum(batch_tot_loss)
@@ -35,7 +34,7 @@ def train(
             n_train += len(batch_x)
             batch_iterator.set_postfix({"loss": f"{ave_batch_loss:.3f}"})
         avg_epoch_error = tot_epoch_error / n_train
-        accuracy = run_validation(val_loader, network)
+        accuracy = run_validation(val_loader, model)
         batch_iterator.write(
             f"ave_epoch_err={e+1}/{epoches} "
             f"avg_epoch_error={avg_epoch_error:.3f} accuracy={accuracy:.3f}"
