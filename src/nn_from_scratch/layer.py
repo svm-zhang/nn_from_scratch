@@ -5,12 +5,8 @@ import numpy as np
 from scipy import signal
 
 # TODO:
-# 1. Add padding. [DONE]
 # 2. Max pooling
 # 3. BatchNormalization2D
-# 4. Adam SGD
-# 5. Use np.float32 [DONE]
-# 6. SGD with momentum [DONE]
 
 
 class Parameter:
@@ -289,10 +285,6 @@ class BatchNorm1D(Layer):
             np.zeros((1, d)).astype(np.float32),
             requires_grad=False,
         )
-        # self.gamma = np.ones((1, d)).astype(np.float32)
-        # self.beta = np.zeros((1, d)).astype(np.float32)
-        # self.running_mu = np.zeros((1, d)).astype(np.float32)
-        # self.running_var = np.zeros((1, d)).astype(np.float32)
         self.momentum = momentum
         self.eps = eps
 
