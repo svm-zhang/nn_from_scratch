@@ -12,11 +12,13 @@ class Activation(Layer):
         self.input = input
         return self.f(self.input)
 
-    def backward(self, output_gradient, lr: np.float32):
+    def backward(self, output_gradient):
         # For activation layer, there are no parameters to train..
-        _ = lr
         # element-wise multiplication
         return np.multiply(output_gradient, self.f_prime(self.input))
+
+    def parameters(self) -> None:
+        pass
 
 
 class Tanh(Activation):
@@ -43,7 +45,6 @@ class ReLU(Activation):
     @staticmethod
     def _relu_prime(x):
         return (x > 0).astype(x.dtype)
-        # return np.where(x > 0, 1, 0).astype(np.float32)
 
 
 class Sigmoid(Activation):
