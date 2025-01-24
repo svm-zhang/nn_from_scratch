@@ -1,9 +1,20 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import numpy as np
 
 from .activation import ReLU
-from .layer import BatchNorm1D, Convolution, Dense, Layer, Parameter, Reshape
+from .layer import (
+    BatchNorm1D,
+    Convolution,
+    Dense,
+    Layer,
+    Parameter,
+    Pooling,
+    Reshape,
+)
+
+# TODO: save and load state dict
 
 
 class BaseModel(ABC):
@@ -29,10 +40,35 @@ class BaseModel(ABC):
 
 
 class CNNModel(BaseModel):
-    def __init__(self, input_shape):
+    # def __init__(self, input_shape):
+    def __init__(
+        self,
+        input_shape: tuple[int, int, int],
+        output_shape: int,
+        ks: list[int],
+        depths: list[int],
+        paddings: list[int],
+        fc_features: list[int],
+        pool_method: str = "max",
+        fs: Optional[list[int]] = None,
+        strides: Optional[list[int]] = None,
+    ):
         self.input_shape = input_shape
+        self.output_shape = output_shape
+        self.ks = ks
+        self.depths = depths
+        self.fs = fs
+        self.strides = strides
+        self.paddings = paddings
+        self.fc_features = fc_features
+        if pool_method not in ["max", "ave"]:
+            raise ValueError(
+                f"Invalid value for pooling method: {pool_method}"
+            )
+        self.pool_method = pool_method
         self._layers = []
         self._named_parameters = {}
+        self._build()
 
     def add_layer(self, layer: Layer):
         self._layers.append(layer)
@@ -50,6 +86,46 @@ class CNNModel(BaseModel):
             params += [param for param in tmp]
         return params
 
+    def _build(self):
+        assert len(self.ks) == len(self.depths)
+        assert len(self.ks) == len(self.paddings)
+        if self.fs is not None:
+            assert len(self.ks) == len(self.fs)
+        if self.strides is not None:
+            assert len(self.ks) == len(self.strides)
+        input_shape = self.input_shape
+        for i in range(len(self.ks)):
+            k = self.ks[i]
+            depth = self.depths[i]
+            padding = self.paddings[i]
+            conv = Convolution(self.input_shape, k, depth, padding)
+            self.add_layer(conv)
+            input_shape = conv.output_shape
+            # Add pooling layer if possible
+            if self.fs is not None:
+                f = self.fs[i]
+                stride = self.strides[i] if self.strides is not None else None
+                # filter size == -1 means skip
+                if f != -1:
+                    pool = Pooling(f, method=self.pool_method, stride=stride)
+                    self.add_layer(pool)
+            relu = ReLU()
+            self.add_layer(relu)
+        fc_in = np.prod(input_shape)
+        reshap = Reshape(input_shape, fc_in)
+        self.add_layer(reshap)
+        for i in range(len(self.fc_features)):
+            fc_feature = self.fc_features[i]
+            fc = Dense(fc_in, fc_feature)
+            self.add_layer(fc)
+            relu = ReLU()
+            self.add_layer(relu)
+            batch_norm = BatchNorm1D(fc_feature)
+            self.add_layer(batch_norm)
+            fc_in = fc_feature
+        fc = Dense(fc_in, self.output_shape)
+        self.add_layer(fc)
+
     def forward(self, input, train: bool):
         output = input
         for layer in self.layers:
@@ -57,6 +133,8 @@ class CNNModel(BaseModel):
                 output = layer.forward(output, train)
             else:
                 output = layer.forward(output)
+            if isinstance(layer, Pooling):
+                raise SystemExit
         return output
 
     def train(self, input):
@@ -69,45 +147,3 @@ class CNNModel(BaseModel):
         for layer in self.layers[::-1]:
             grad = layer.backward(grad)
         return grad
-
-
-def build_cnn_model(
-    input_shape: tuple[int, int, int],
-    output_shape: int,
-    ks: list[int],
-    depths: list[int],
-    paddings: list[int],
-    fc_features: list[int],
-):
-    assert len(ks) == len(depths)
-    assert len(ks) == len(paddings)
-    cnn = CNNModel(input_shape)
-    print(f"{input_shape=}")
-    for i in range(len(ks)):
-        k = ks[i]
-        depth = depths[i]
-        padding = paddings[i]
-        conv = Convolution(input_shape, k, depth, padding)
-        cnn.add_layer(conv)
-        input_shape = conv.output_shape
-        relu = ReLU()
-        cnn.add_layer(relu)
-        print(f"{input_shape=}")
-    fc_in = np.prod(input_shape)
-    reshap = Reshape(input_shape, fc_in)
-    cnn.add_layer(reshap)
-    print("Add Dense")
-    for i in range(len(fc_features)):
-        fc_feature = fc_features[i]
-        fc = Dense(fc_in, fc_feature)
-        cnn.add_layer(fc)
-        relu = ReLU()
-        cnn.add_layer(relu)
-        batch_norm = BatchNorm1D(fc_feature)
-        cnn.add_layer(batch_norm)
-        fc_in = fc_feature
-        print(f"{fc_in=}")
-    fc = Dense(fc_in, output_shape)
-    cnn.add_layer(fc)
-
-    return cnn
