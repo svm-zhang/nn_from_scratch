@@ -37,9 +37,29 @@ class SGD(optimizer):
 
 
 class Adam(optimizer):
-    def __init__(self, params, lr, betas):
+    def __init__(
+        self, params, lr, betas: tuple[float, float] = (0.9, 0.999), eps=1e-6
+    ):
         super().__init__(params, lr)
+        self.lr = lr
         self.beta_1, self.beta_2 = betas
+        self.eps = eps
+        self.t = 0
+        self.vs = [np.zeros_like(param.grad) for param in self.params]
+        self.ms = [np.zeros_like(param.grad) for param in self.params]
 
     def step(self):
-        pass
+        self.t += 1
+        for i, param in enumerate(self.params):
+            assert isinstance(param, Parameter)
+            if param.grad is None:
+                continue
+            self.ms[i] = (
+                self.beta_1 * self.ms[i] + (1 - self.beta_1) * param.grad
+            )
+            mt_hat = self.ms[i] / (1 - self.beta_1**self.t)
+            self.vs[i] = self.beta_2 * self.vs[i] + (
+                1 - self.beta_2
+            ) * np.power(param.grad, 2)
+            vt_hat = self.vs[i] / (1 - self.beta_2**self.t)
+            param.value -= (self.lr * mt_hat) / (np.sqrt(vt_hat) + self.eps)
