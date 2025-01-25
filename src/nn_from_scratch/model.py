@@ -9,8 +9,8 @@ from .layer import (
     Convolution,
     Dense,
     Layer,
+    MaxPool,
     Parameter,
-    Pooling,
     Reshape,
 )
 
@@ -107,8 +107,11 @@ class CNNModel(BaseModel):
                 stride = self.strides[i] if self.strides is not None else None
                 # filter size == -1 means skip
                 if f != -1:
-                    pool = Pooling(f, method=self.pool_method, stride=stride)
+                    pool = MaxPool(
+                        input_shape, f, method=self.pool_method, stride=stride
+                    )
                     self.add_layer(pool)
+                    input_shape = pool.output_shape
             relu = ReLU()
             self.add_layer(relu)
         fc_in = np.prod(input_shape)
@@ -133,8 +136,6 @@ class CNNModel(BaseModel):
                 output = layer.forward(output, train)
             else:
                 output = layer.forward(output)
-            if isinstance(layer, Pooling):
-                raise SystemExit
         return output
 
     def train(self, input):
