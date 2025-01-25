@@ -14,25 +14,25 @@ def solve_mnist():
     mnist_data = MNIST("./mnist/")
     seed = torch.Generator().manual_seed(2024)
 
-    train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(
-        mnist_data.data, [0.85, 0.05, 0.1], generator=seed
+    train_dataset, val_dataset = torch.utils.data.random_split(
+        mnist_data.data["train"], [0.9, 0.1], generator=seed
     )
     batch_size = 128
     train_loader = NaiveDataLoader(train_dataset, batch_size, shuffle=True)
     val_loader = NaiveDataLoader(val_dataset, batch_size)
-    test_loader = NaiveDataLoader(test_dataset, batch_size)
+    test_loader = NaiveDataLoader(mnist_data.data["test"], batch_size)
 
-    input_shape = (1, 28, 28)
-    output_shape = len(mnist_data.data.classes)
+    input_shape = mnist_data.input_shape
+    output_shape = mnist_data.n_classes
     epoch = 20
     lr = 0.0005
 
     model = CNNModel(
         input_shape,
         output_shape,
-        ks=[3],
-        depths=[3],
-        paddings=[1],
+        ks=[3, 3],
+        depths=[5, 3],
+        paddings=[1, 0],
         fc_features=[256],
     )
     # optimizer = SGD(model.parameters(), lr, momentum=0.9)
