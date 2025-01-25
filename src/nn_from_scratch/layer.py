@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 from scipy import signal
+
+from .initialization import he_normal_init
 
 # TODO:
 # 2. Max pooling
@@ -66,7 +68,7 @@ class Dense(Layer):
         # weights: (output_size, input_size)
         self._weights: Parameter = Parameter(
             "weights",
-            self._he_init(input_size, output_size).astype(np.float32),
+            he_normal_init((input_size,), output_size).astype(np.float32),
             requires_grad=True,
         )
         # bias: (b, output_size)
@@ -79,13 +81,6 @@ class Dense(Layer):
     def _he_init(self, input_size, output_size):
         stddev = np.sqrt(2.0 / input_size)
         return np.random.normal(0, stddev, (output_size, input_size))
-
-    # def _random_normal_init(self, input_size, output_size):
-    #     return np.random.normal(0, 1, size=(output_size, input_size))
-    #
-    # def _random_init(self, input_size, output_size):
-    #     self.weights = np.random.randn(output_size, input_size)  # w[j][i]
-    #     self.bias = np.random.randn(output_size, 1)
 
     @property
     def weights(self) -> Parameter:
@@ -117,7 +112,13 @@ class Dense(Layer):
 
 
 class Convolution(Layer):
-    def __init__(self, input_shape, kernel_size, depth, padding: int = 0):
+    def __init__(
+        self,
+        input_shape: tuple[int, ...],
+        kernel_size: int,
+        depth: int,
+        padding: int = 0,
+    ):
         input_depth, input_height, input_width = input_shape
         self.padding_x = padding
         self.padding_y = padding
@@ -136,7 +137,9 @@ class Convolution(Layer):
         )
         self.weights = Parameter(
             "weights",
-            self._he_init(*self.kernel_shape).astype(np.float32),
+            he_normal_init(
+                (input_depth, kernel_size, kernel_size), depth
+            ).astype(np.float32),
             requires_grad=True,
         )
         self.bias = Parameter(
@@ -326,4 +329,64 @@ class BatchNorm1D(Layer):
         # local gradient for beta
         self.beta.grad = np.sum(output_gradient, axis=0, keepdims=True)
         # return gradient w.r.t to input
+        return input_gradient
+
+
+class MaxPool(Layer):
+    def __init__(
+        self,
+        input_shape,
+        f: int,
+        method: str,
+        stride: Optional[int] = None,
+    ):
+        self.method = method
+        self.f = f
+        if stride is None:
+            self.stride = f
+        else:
+            self.stride = stride
+        self.input_shape = input_shape
+        c, h, w = input_shape
+        o_h = (w - self.f) // self.stride + 1
+        o_w = (h - self.f) // self.stride + 1
+        self.output_shape = (c, o_h, o_w)
+
+    def parameters(self) -> None:
+        return
+
+    def forward(self, input):
+        self.input = input
+        assert input.ndim == len(input.strides)
+        stride_b, stride_c, stride_h, stride_w = input.strides
+        view_shape = (
+            input.shape[:2] + self.output_shape[-2:] + (self.f, self.f)
+        )
+        strides = (
+            stride_b,
+            stride_c,
+            stride_h * self.stride,
+            stride_w * self.stride,
+            stride_h,
+            stride_w,
+        )
+        input_view = np.lib.stride_tricks.as_strided(
+            input, view_shape, strides=strides, writeable=False
+        )
+        output = np.nanmax(input_view, axis=(4, 5), keepdims=True)
+        self.pos = np.where(output == input_view, 1, 0)
+        output = np.squeeze(output, axis=(4, 5))
+        self.output_shape = output.shape
+
+        return output
+
+    def backward(self, output_gradient):
+        input_gradient = np.zeros(self.input.shape)
+        ib, ic, ih, iw, iy, ix = np.where(self.pos == 1)
+        ih2 = ih * self.stride
+        iw2 = iw * self.stride
+        ih2 += iy
+        iw2 += ix
+        values = output_gradient[ib, ic, ih, iw].flatten()
+        input_gradient[ib, ic, ih2, iw2] = values
         return input_gradient
