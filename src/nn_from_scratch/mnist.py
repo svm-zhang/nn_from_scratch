@@ -2,15 +2,12 @@ import numpy as np
 import torch
 from tqdm.auto import tqdm
 
-from .activation import ReLU
 from .dataloader import NaiveDataLoader
 from .datasets import MNIST
 from .inference import run_validation
-from .layer import BatchNorm1D, Convolution, Dense, Reshape
 from .loss import CELoss
-from .model import build_cnn_model
-from .optim import SGD
-from .train import train
+from .model import CNNModel
+from .optim import SGD, Adam
 
 
 def solve_mnist():
@@ -28,27 +25,18 @@ def solve_mnist():
     input_shape = (1, 28, 28)
     output_shape = len(mnist_data.data.classes)
     epoch = 20
-    lr = 0.001
+    lr = 0.0005
 
-    model = build_cnn_model(
+    model = CNNModel(
         input_shape,
         output_shape,
-        [3],
-        [3],
-        [0],
-        [128],
+        ks=[3],
+        depths=[3],
+        paddings=[1],
+        fc_features=[256],
     )
-    optimizer = SGD(model.parameters(), lr, momentum=0.9)
-
-    # network = [
-    #     Convolution((1, 28, 28), kernel_size, n_kernel),
-    #     ReLU(),
-    #     Reshape((n_kernel, 26, 26), n_kernel * 26 * 26),
-    #     Dense(n_kernel * 26 * 26, fc1),
-    #     BatchNorm1D(fc1),
-    #     ReLU(),
-    #     Dense(fc1, 10),
-    # ]
+    # optimizer = SGD(model.parameters(), lr, momentum=0.9)
+    optimizer = Adam(model.parameters(), lr)
 
     loss_fn = CELoss()
     for e in range(epoch):
@@ -77,8 +65,6 @@ def solve_mnist():
             f"ave_epoch_err={e+1}/{epoch} "
             f"avg_epoch_error={avg_epoch_error:.3f} accuracy={accuracy:.3f}"
         )
-
-    # train(train_loader, val_loader, model, optimizer, loss_fn, epoch)
 
     accuracy = run_validation(test_loader, model)
     print(f"Test accuracy: {accuracy:.3f}")
