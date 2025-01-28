@@ -7,7 +7,6 @@ from scipy import signal
 from .initialization import he_normal_init
 
 # TODO:
-# 2. Max pooling
 # 3. BatchNormalization2D
 
 
@@ -191,8 +190,8 @@ class Convolution(Layer):
 
     def backward(self, output_gradient):
         # (cout, cin, k, k)
-        kernel_grad = np.zeros(self.kernel_shape)
-        bias_grad = np.zeros(self.output_shape)
+        # kernel_grad = np.zeros(self.kernel_shape)
+        # bias_grad = np.zeros(self.output_shape)
         # (b, cin, h, w)
         input_grad = np.zeros(self.input.shape)
 
