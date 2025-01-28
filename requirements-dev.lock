@@ -10,32 +10,365 @@
 #   universal: false
 
 -e file:.
+anyio==4.8.0
+    # via httpx
+    # via jupyter-server
+appnope==0.1.4
+    # via ipykernel
+argon2-cffi==23.1.0
+    # via jupyter-server
+argon2-cffi-bindings==21.2.0
+    # via argon2-cffi
+arrow==1.3.0
+    # via isoduration
+asttokens==3.0.0
+    # via stack-data
+async-lru==2.0.4
+    # via jupyterlab
+attrs==24.3.0
+    # via jsonschema
+    # via outcome
+    # via referencing
+    # via trio
+babel==2.16.0
+    # via jupyterlab-server
+beautifulsoup4==4.12.3
+    # via nbconvert
+bleach==6.2.0
+    # via nbconvert
+certifi==2024.12.14
+    # via httpcore
+    # via httpx
+    # via requests
+    # via selenium
+cffi==1.17.1
+    # via argon2-cffi-bindings
+charset-normalizer==3.4.1
+    # via requests
+coloredlogs==15.0.1
+    # via jupynium
+comm==0.2.2
+    # via ipykernel
+debugpy==1.8.12
+    # via ipykernel
+decorator==5.1.1
+    # via ipython
+defusedxml==0.7.1
+    # via nbconvert
+exceptiongroup==1.2.2
+    # via anyio
+    # via ipython
+    # via trio
+    # via trio-websocket
+executing==2.2.0
+    # via stack-data
+fastjsonschema==2.21.1
+    # via nbformat
 filelock==3.16.1
     # via torch
+fqdn==1.5.1
+    # via jsonschema
 fsspec==2024.10.0
     # via torch
+gitdb==4.0.12
+    # via gitpython
+gitpython==3.1.44
+    # via jupynium
+greenlet==3.1.1
+    # via pynvim
+h11==0.14.0
+    # via httpcore
+    # via wsproto
+httpcore==1.0.7
+    # via httpx
+httpx==0.28.1
+    # via jupyterlab
+humanfriendly==10.0
+    # via coloredlogs
+idna==3.10
+    # via anyio
+    # via httpx
+    # via jsonschema
+    # via requests
+    # via trio
+ipykernel==6.29.5
+    # via jupyterlab
+    # via nbclassic
+ipython==8.31.0
+    # via ipykernel
+ipython-genutils==0.2.0
+    # via nbclassic
+isoduration==20.11.0
+    # via jsonschema
+jedi==0.19.2
+    # via ipython
 jinja2==3.1.4
+    # via jupyter-server
+    # via jupyterlab
+    # via jupyterlab-server
+    # via nbconvert
     # via torch
+joblib==1.4.2
+    # via scikit-learn
+json5==0.10.0
+    # via jupyterlab-server
+jsonpointer==3.0.0
+    # via jsonschema
+jsonschema==4.23.0
+    # via jupyter-events
+    # via jupyterlab-server
+    # via nbformat
+jsonschema-specifications==2024.10.1
+    # via jsonschema
+jupynium==0.2.5
+    # via nn-from-scratch
+jupyter-client==8.6.3
+    # via ipykernel
+    # via jupyter-server
+    # via nbclient
+jupyter-core==5.7.2
+    # via ipykernel
+    # via jupyter-client
+    # via jupyter-server
+    # via jupyterlab
+    # via nbclient
+    # via nbconvert
+    # via nbformat
+jupyter-events==0.11.0
+    # via jupyter-server
+jupyter-lsp==2.2.5
+    # via jupyterlab
+jupyter-server==2.15.0
+    # via jupyter-lsp
+    # via jupyterlab
+    # via jupyterlab-server
+    # via notebook
+    # via notebook-shim
+jupyter-server-terminals==0.5.3
+    # via jupyter-server
+jupyterlab==4.3.4
+    # via notebook
+jupyterlab-pygments==0.3.0
+    # via nbconvert
+jupyterlab-server==2.27.3
+    # via jupyterlab
+    # via notebook
 markupsafe==3.0.2
     # via jinja2
+    # via nbconvert
+matplotlib-inline==0.1.7
+    # via ipykernel
+    # via ipython
+mistune==3.1.0
+    # via nbconvert
 mpmath==1.3.0
     # via sympy
+msgpack==1.1.0
+    # via pynvim
+nbclassic==1.2.0
+    # via nn-from-scratch
+nbclient==0.10.2
+    # via nbconvert
+nbconvert==7.16.5
+    # via jupyter-server
+nbformat==5.10.4
+    # via jupyter-server
+    # via nbclient
+    # via nbconvert
+nest-asyncio==1.6.0
+    # via ipykernel
+    # via nbclassic
 networkx==3.4.2
     # via torch
+notebook==7.3.2
+    # via nn-from-scratch
+notebook-shim==0.2.4
+    # via jupyterlab
+    # via nbclassic
+    # via notebook
 numpy==2.1.3
     # via nn-from-scratch
+    # via numpy-typing
+    # via pandas
+    # via scikit-learn
     # via scipy
     # via torchvision
+numpy-typing==1.1.1
+    # via nn-from-scratch
+outcome==1.3.0.post0
+    # via trio
+overrides==7.7.0
+    # via jupyter-server
+packaging==24.2
+    # via ipykernel
+    # via jupynium
+    # via jupyter-server
+    # via jupyterlab
+    # via jupyterlab-server
+    # via nbconvert
+pandas==2.2.3
+    # via nn-from-scratch
+pandocfilters==1.5.1
+    # via nbconvert
+parso==0.8.4
+    # via jedi
+persist-queue==1.0.0
+    # via jupynium
+pexpect==4.9.0
+    # via ipython
 pillow==11.0.0
     # via torchvision
+platformdirs==4.3.6
+    # via jupynium
+    # via jupyter-core
+prometheus-client==0.21.1
+    # via jupyter-server
+prompt-toolkit==3.0.50
+    # via ipython
+psutil==6.1.1
+    # via ipykernel
+    # via jupynium
+ptyprocess==0.7.0
+    # via pexpect
+    # via terminado
+pure-eval==0.2.3
+    # via stack-data
+pycparser==2.22
+    # via cffi
+pygments==2.19.1
+    # via ipython
+    # via nbconvert
+pynvim==0.5.2
+    # via jupynium
+pysocks==1.7.1
+    # via urllib3
+python-dateutil==2.9.0.post0
+    # via arrow
+    # via jupyter-client
+    # via pandas
+python-json-logger==3.2.1
+    # via jupyter-events
+pytz==2024.2
+    # via pandas
+pyyaml==6.0.2
+    # via jupyter-events
+pyzmq==26.2.0
+    # via ipykernel
+    # via jupyter-client
+    # via jupyter-server
+referencing==0.36.1
+    # via jsonschema
+    # via jsonschema-specifications
+    # via jupyter-events
+requests==2.32.3
+    # via jupyterlab-server
+rfc3339-validator==0.1.4
+    # via jsonschema
+    # via jupyter-events
+rfc3986-validator==0.1.1
+    # via jsonschema
+    # via jupyter-events
+rpds-py==0.22.3
+    # via jsonschema
+    # via referencing
+scikit-learn==1.6.0
+    # via nn-from-scratch
 scipy==1.14.1
     # via nn-from-scratch
+    # via scikit-learn
+selenium==4.28.1
+    # via jupynium
+send2trash==1.8.3
+    # via jupyter-server
+setuptools==75.8.0
+    # via jupynium
+    # via jupyterlab
+six==1.17.0
+    # via python-dateutil
+    # via rfc3339-validator
+smmap==5.0.2
+    # via gitdb
+sniffio==1.3.1
+    # via anyio
+    # via trio
+sortedcontainers==2.4.0
+    # via trio
+soupsieve==2.6
+    # via beautifulsoup4
+stack-data==0.6.3
+    # via ipython
 sympy==1.13.1
     # via torch
+terminado==0.18.1
+    # via jupyter-server
+    # via jupyter-server-terminals
+threadpoolctl==3.5.0
+    # via scikit-learn
+tinycss2==1.4.0
+    # via bleach
+tomli==2.2.1
+    # via jupyterlab
 torch==2.5.1
     # via nn-from-scratch
     # via torchvision
 torchvision==0.20.1
     # via nn-from-scratch
+tornado==6.4.2
+    # via ipykernel
+    # via jupyter-client
+    # via jupyter-server
+    # via jupyterlab
+    # via notebook
+    # via terminado
+tqdm==4.67.1
+    # via nn-from-scratch
+traitlets==5.14.3
+    # via comm
+    # via ipykernel
+    # via ipython
+    # via jupyter-client
+    # via jupyter-core
+    # via jupyter-events
+    # via jupyter-server
+    # via jupyterlab
+    # via matplotlib-inline
+    # via nbclient
+    # via nbconvert
+    # via nbformat
+trio==0.28.0
+    # via selenium
+    # via trio-websocket
+trio-websocket==0.11.1
+    # via selenium
+types-python-dateutil==2.9.0.20241206
+    # via arrow
 typing-extensions==4.12.2
+    # via anyio
+    # via async-lru
+    # via ipython
+    # via mistune
+    # via pynvim
+    # via referencing
+    # via selenium
     # via torch
+tzdata==2024.2
+    # via pandas
+uri-template==1.3.0
+    # via jsonschema
+urllib3==2.3.0
+    # via requests
+    # via selenium
+verboselogs==1.7
+    # via jupynium
+wcwidth==0.2.13
+    # via prompt-toolkit
+webcolors==24.11.1
+    # via jsonschema
+webencodings==0.5.1
+    # via bleach
+    # via tinycss2
+websocket-client==1.8.0
+    # via jupyter-server
+    # via selenium
+wsproto==1.2.0
+    # via trio-websocket
