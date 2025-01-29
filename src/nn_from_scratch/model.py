@@ -1,5 +1,7 @@
+import pickle
 from abc import ABC, abstractmethod
-from typing import Optional
+from collections import OrderedDict
+from typing import Generator, Optional
 
 import numpy as np
 
@@ -14,20 +16,22 @@ from .layer import (
     Reshape,
 )
 
-# TODO: save and load state dict
-
 
 class BaseModel(ABC):
     def __init__(self, *kwargs): ...
 
     @abstractmethod
-    def parameters(self) -> list[Parameter]: ...
+    def parameters(self) -> Generator[Parameter, None, None]: ...
 
     @abstractmethod
     def add_layer(self, layer: Layer): ...
 
     @property
     def layers(self) -> list[Layer]: ...
+
+    @property
+    def name(self) -> str:
+        return self.__class__.__name__.lower()
 
     @abstractmethod
     def forward(self, input, train): ...
@@ -37,6 +41,13 @@ class BaseModel(ABC):
 
     @abstractmethod
     def train(self, input): ...
+
+    @abstractmethod
+    def state_dict(self) -> OrderedDict[str, Parameter]:
+        pass
+
+    @abstractmethod
+    def load_state_dict(self, state_dict): ...
 
 
 class CNNModel(BaseModel):
@@ -77,14 +88,13 @@ class CNNModel(BaseModel):
     def layers(self) -> list[Layer]:
         return self._layers
 
-    def parameters(self) -> list[Parameter]:
-        params = []
+    def parameters(self) -> Generator[Parameter, None, None]:
         for layer in self.layers:
             tmp = layer.parameters()
             if tmp is None:
                 continue
-            params += [param for param in tmp]
-        return params
+            for param in tmp:
+                yield param[1]
 
     def _build(self):
         assert len(self.ks) == len(self.depths)
@@ -148,3 +158,30 @@ class CNNModel(BaseModel):
         for layer in self.layers[::-1]:
             grad = layer.backward(grad)
         return grad
+
+    def state_dict(self) -> OrderedDict[str, Parameter]:
+        params = []
+        for layer in self.layers:
+            tmp = layer.parameters()
+            if tmp is None:
+                continue
+            params += [
+                (f"{self.name}.{i}.{param[0]}", param[1]) for param in tmp
+            ]
+        return OrderedDict(params)
+
+    def load_state_dict(self, state_dict):
+        states = list(state_dict.items())
+        for i, param in enumerate(self.parameters()):
+            state = states[i]
+            param.value = state[1].value
+
+
+def save(obj, fspath) -> None:
+    with open(fspath, "wb") as f:
+        pickle.dump(obj, f)
+
+
+def load(fspath):
+    with open(fspath, "rb") as f:
+        return pickle.load(f)
