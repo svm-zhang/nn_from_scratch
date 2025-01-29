@@ -11,8 +11,7 @@ from .initialization import he_normal_init
 
 
 class Parameter:
-    def __init__(self, key, value, requires_grad):
-        self._key = key
+    def __init__(self, value, requires_grad):
         self._value = value
         self._grad = None
         if requires_grad:
@@ -21,10 +20,6 @@ class Parameter:
     def zero_grad(self):
         if self._grad is not None:
             self._grad = np.zeros_like(self._grad).astype(self.value.dtype)
-
-    @property
-    def key(self) -> str:
-        return self._key
 
     @property
     def value(self) -> np.ndarray:
@@ -59,20 +54,22 @@ class Layer(ABC):
     def backward(self, output_gradient) -> Any: ...
 
     @abstractmethod
-    def parameters(self) -> list[Parameter] | None: ...
+    def parameters(self) -> list[tuple[str, Parameter]] | None: ...
+
+    @property
+    def name(self):
+        return self.__class__.__name__.lower()
 
 
 class Dense(Layer):
     def __init__(self, input_size, output_size):
         # weights: (output_size, input_size)
         self._weights: Parameter = Parameter(
-            "weights",
             he_normal_init((input_size,), output_size).astype(np.float32),
             requires_grad=True,
         )
         # bias: (b, output_size)
         self._bias: Parameter = Parameter(
-            "bias",
             np.zeros((1, output_size)).astype(np.float32),
             requires_grad=True,
         )
@@ -89,8 +86,11 @@ class Dense(Layer):
     def bias(self) -> Parameter:
         return self._bias
 
-    def parameters(self) -> list[Parameter]:
-        return [self.weights, self.bias]
+    def parameters(self) -> list[tuple[str, Parameter]]:
+        return [
+            (f"{self.name}.weights", self.weights),
+            (f"{self.name}.bias", self.bias),
+        ]
 
     def forward(self, input):
         # input (b, input_size)
@@ -135,14 +135,12 @@ class Convolution(Layer):
             kernel_size,
         )
         self.weights = Parameter(
-            "weights",
             he_normal_init(
                 (input_depth, kernel_size, kernel_size), depth
             ).astype(np.float32),
             requires_grad=True,
         )
         self.bias = Parameter(
-            "bias",
             np.zeros(self.output_shape).astype(np.float32),
             requires_grad=True,
         )
@@ -158,8 +156,11 @@ class Convolution(Layer):
             (depth, input_depth, kernel_height, kernel_width),
         )  # Normal distribution
 
-    def parameters(self) -> list[Parameter]:
-        return [self.weights, self.bias]
+    def parameters(self) -> list[tuple[str, Parameter]]:
+        return [
+            (f"{self.name}.weights", self.weights),
+            (f"{self.name}.bias", self.bias),
+        ]
 
     def forward(self, input):
         # Y = B + X * K
@@ -272,26 +273,29 @@ class Softmax(Layer):
 class BatchNorm1D(Layer):
     def __init__(self, d: int, momentum: float = 0.1, eps=1e-6):
         self.gamma = Parameter(
-            "gamma", np.ones((1, d)).astype(np.float32), requires_grad=True
+            np.ones((1, d)).astype(np.float32), requires_grad=True
         )
         self.beta = Parameter(
-            "beta", np.zeros((1, d)).astype(np.float32), requires_grad=True
+            np.zeros((1, d)).astype(np.float32), requires_grad=True
         )
         self.running_mu = Parameter(
-            "running_mu",
             np.zeros((1, d)).astype(np.float32),
             requires_grad=False,
         )
         self.running_var = Parameter(
-            "running_var",
             np.zeros((1, d)).astype(np.float32),
             requires_grad=False,
         )
         self.momentum = momentum
         self.eps = eps
 
-    def parameters(self) -> list[Parameter]:
-        return [self.gamma, self.beta, self.running_mu, self.running_var]
+    def parameters(self) -> list[tuple[str, Parameter]]:
+        return [
+            (f"{self.name}.weights", self.gamma),
+            (f"{self.name}.bias", self.beta),
+            (f"{self.name}.running_mu", self.running_mu),
+            (f"{self.name}.running_var", self.running_var),
+        ]
 
     def forward(self, input, train=True):
         self.input = input
