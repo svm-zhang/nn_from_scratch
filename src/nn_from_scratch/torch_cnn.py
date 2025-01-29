@@ -1,13 +1,9 @@
-from collections import defaultdict
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torchvision
-from torchvision.transforms import v2
+from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from .dataloader import NaiveDataLoader
 from .datasets import MNIST
 
 
@@ -41,13 +37,13 @@ def solve_mnist_with_torch():
         mnist_data.data["train"], [0.9, 0.1], generator=seed
     )
     batch_size = 128
-    train_loader = NaiveDataLoader(train_dataset, batch_size, shuffle=True)
-    val_loader = NaiveDataLoader(val_dataset, batch_size)
-    test_loader = NaiveDataLoader(mnist_data.data["test"], batch_size)
+    train_loader = DataLoader(train_dataset, batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size)
+    test_loader = DataLoader(mnist_data.data["test"], batch_size)
 
     batch_size = 128
 
-    epoches = 50
+    epoches = 20
     input_shape = (1, 28, 28)
     kernel_size = 3
     depth = 3
@@ -55,13 +51,17 @@ def solve_mnist_with_torch():
     lr = 0.001
     loss_f = nn.CrossEntropyLoss()
     model = CNNModel(input_shape, kernel_size, depth, n_neurons)
-    optimizer = optim.SGD(model.parameters(), lr=lr)
+    optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.99))
 
+    model_out = "test.pt"
     losses = []
     for epoch in range(epoches):
         epoch_loss = 0.0
         n_batch = 0
-        for x_train, y_train in train_loader:
+        batch_iterator = tqdm(
+            train_loader, desc=f"Processing epoch: {epoch:02d}"
+        )
+        for x_train, y_train in batch_iterator:
             model.train()
             optimizer.zero_grad()
             logits = model(x_train)
@@ -75,18 +75,27 @@ def solve_mnist_with_torch():
         avg_epoch_loss = epoch_loss / n_batch
         losses.append(avg_epoch_loss)
         print(f"{epoch=} {avg_epoch_loss=}")
+        torch.save(
+            {
+                "epoch": epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+            },
+            model_out,
+        )
 
     n_correct = 0
+    n_test = 0
     with torch.inference_mode():
-        for x_test, y_test in test_loader:
+        batch_iterator = tqdm(test_loader, desc="Evaluating:")
+        for x_test, y_test in batch_iterator:
             logits = model(x_test)
             pred = torch.softmax(logits, dim=-1).argmax(dim=-1).squeeze()
-            y_test = y_test.squeeze()
+            truth = torch.argmax(y_test, dim=-1).squeeze()
 
-            if torch.equal(pred, y_test):
-                n_correct += 1
-            else:
-                print(f"{pred=} {y_test=}")
+            n_correct += torch.sum(pred == truth).item()
+            n_test += y_test.shape[0]
 
-    acc = n_correct / len(test_loader)
-    print(f"{acc=}")
+    acc = n_correct / n_test
+
+    print(f"{n_correct=} {n_test=} {acc=}")
