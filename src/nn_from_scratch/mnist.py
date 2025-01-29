@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import torch
 from tqdm.auto import tqdm
@@ -6,11 +8,14 @@ from .dataloader import NaiveDataLoader
 from .datasets import MNIST
 from .inference import run_validation
 from .loss import CELoss
-from .model import CNNModel
+from .model import CNNModel, load, save
 from .optim import SGD, Adam
 
 
-def solve_mnist():
+def solve_mnist(args):
+    outdir = Path(args.outdir)
+    if not outdir.exists():
+        outdir.mkdir(parents=True, exist_ok=True)
     mnist_data = MNIST("./mnist/")
     seed = torch.Generator().manual_seed(2024)
 
@@ -25,21 +30,32 @@ def solve_mnist():
     input_shape = mnist_data.input_shape
     output_shape = mnist_data.n_classes
     epoch = 20
-    lr = 0.0005
+    lr = 0.001
 
+    loss_fn = CELoss()
     model = CNNModel(
         input_shape,
         output_shape,
-        ks=[3, 3],
-        depths=[5, 3],
-        paddings=[1, 0],
+        ks=[3],
+        depths=[3],
+        paddings=[1],
         fc_features=[256],
     )
-    # optimizer = SGD(model.parameters(), lr, momentum=0.9)
-    optimizer = Adam(model.parameters(), lr)
+    optimizer = SGD(model.parameters(), lr, momentum=0.9)
+    # optimizer = Adam(model.parameters(), lr)
 
-    loss_fn = CELoss()
-    for e in range(epoch):
+    model_outp = f"{model.name}.mnist"
+    initial_epoch = 0
+    if args.preload is not None:
+        checkpoint = outdir / f"{model_outp}.{args.preload}.pt"
+        if not checkpoint.exists():
+            raise FileNotFoundError("Failed to find model file to preload.")
+        state = load(checkpoint)
+        initial_epoch = state.get("epoch") + 1
+        model.load_state_dict(state.get("model_state_dict"))
+        optimizer.load_state_dict(state.get("optimizer_state_dict"))
+
+    for e in range(initial_epoch, epoch):
         tot_epoch_error = 0
         n_train = 0
         batch_iterator = tqdm(train_loader, desc=f"Processing epoch: {e:02d}")
@@ -64,6 +80,15 @@ def solve_mnist():
         batch_iterator.write(
             f"ave_epoch_err={e+1}/{epoch} "
             f"avg_epoch_error={avg_epoch_error:.3f} accuracy={accuracy:.3f}"
+        )
+        model_fspath = outdir / f"{model_outp}.{e:02d}.pt"
+        save(
+            {
+                "epoch": e,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+            },
+            model_fspath,
         )
 
     accuracy = run_validation(test_loader, model)
