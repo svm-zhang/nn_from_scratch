@@ -133,8 +133,8 @@ class CNNModel(BaseModel):
             self.add_layer(fc)
             relu = ReLU()
             self.add_layer(relu)
-            batch_norm = BatchNorm1D(fc_feature)
-            self.add_layer(batch_norm)
+            # batch_norm = BatchNorm1D(fc_feature)
+            # self.add_layer(batch_norm)
             fc_in = fc_feature
         fc = Dense(fc_in, self.output_shape)
         self.add_layer(fc)
@@ -161,7 +161,7 @@ class CNNModel(BaseModel):
 
     def state_dict(self) -> OrderedDict[str, Parameter]:
         params = []
-        for layer in self.layers:
+        for i, layer in enumerate(self.layers):
             tmp = layer.parameters()
             if tmp is None:
                 continue
