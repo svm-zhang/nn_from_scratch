@@ -62,34 +62,54 @@ class SGD(optimizer):
 
 class Adam(optimizer):
     def __init__(
-        self, params, lr, betas: tuple[float, float] = (0.9, 0.999), eps=1e-6
+        self, params, lr, betas: tuple[float, float] = (0.9, 0.999), eps=1e-8
     ):
         super().__init__(params, lr)
         self.lr = lr
         self.beta_1, self.beta_2 = betas
         self.eps = eps
-        self.t = 0
+        self.ts = [0 for _ in range(len(self.params))]
         self.vs = [np.zeros_like(param.grad) for param in self.params]
         self.ms = [np.zeros_like(param.grad) for param in self.params]
 
     def step(self):
-        self.t += 1
         for i, param in enumerate(self.params):
             assert isinstance(param, Parameter)
             if param.grad is None:
                 continue
+            self.ts[i] += 1
             self.ms[i] = (
                 self.beta_1 * self.ms[i] + (1 - self.beta_1) * param.grad
             )
-            mt_hat = self.ms[i] / (1 - self.beta_1**self.t)
+            mt_hat = self.ms[i] / (1 - self.beta_1 ** self.ts[i])
             self.vs[i] = self.beta_2 * self.vs[i] + (
                 1 - self.beta_2
             ) * np.power(param.grad, 2)
-            vt_hat = self.vs[i] / (1 - self.beta_2**self.t)
+            vt_hat = self.vs[i] / (1 - self.beta_2 ** self.ts[i])
             param.value -= (self.lr * mt_hat) / (np.sqrt(vt_hat) + self.eps)
 
-    def state_dict(self):
-        raise NotImplementedError
+    def state_dict(self) -> dict[str, Any]:
+        return {
+            "state": [
+                {
+                    "step": self.ts[i],
+                    "exp_avg": self.vs[i],
+                    "exp_avg_sq": self.ms[i],
+                }
+                for i in range(len(self.params))
+            ],
+            "lr": self.lr,
+            "betas": (self.beta_1, self.beta_2),
+            "eps": self.eps,
+        }
 
-    def load_state_dict(self, stat_dict):
-        raise NotImplementedError
+    def load_state_dict(self, state_dict):
+        states = state_dict.get("state")
+        for i in range(len(states)):
+            state = states[i]
+            self.ts[i] = state.get("step")
+            self.vs[i] = state.get("exp_avg")
+            self.ms[i] = state.get("exp_avg_sq")
+        self.beta_1, self.beta_2 = state_dict.get("betas")
+        self.lr = state_dict.get("lr")
+        self.eps = state_dict.get("eps")
