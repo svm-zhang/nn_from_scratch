@@ -38,11 +38,11 @@ def solve_mnist(args):
         output_shape,
         ks=[3],
         depths=[3],
-        paddings=[1],
-        fc_features=[256],
+        paddings=[0],
+        fc_features=[128],
     )
-    optimizer = SGD(model.parameters(), lr, momentum=0.9)
-    # optimizer = Adam(model.parameters(), lr)
+    # optimizer = SGD(model.parameters(), lr, momentum=0.9)
+    optimizer = Adam(model.parameters(), lr, betas=(0.9, 0.99))
 
     model_outp = f"{model.name}.mnist"
     initial_epoch = 0
@@ -74,12 +74,12 @@ def solve_mnist(args):
             tot_epoch_error += np.sum(batch_tot_loss)
             ave_batch_loss = np.mean(batch_tot_loss)
             n_train += len(batch_x)
-            batch_iterator.set_postfix({"loss": f"{ave_batch_loss:.3f}"})
+            batch_iterator.set_postfix({"loss": f"{ave_batch_loss:.6f}"})
         avg_epoch_error = tot_epoch_error / n_train
         accuracy = run_validation(val_loader, model)
         batch_iterator.write(
             f"ave_epoch_err={e+1}/{epoch} "
-            f"avg_epoch_error={avg_epoch_error:.3f} accuracy={accuracy:.3f}"
+            f"avg_epoch_error={avg_epoch_error:.6f} accuracy={accuracy:.6f}"
         )
         model_fspath = outdir / f"{model_outp}.{e:02d}.pt"
         save(
