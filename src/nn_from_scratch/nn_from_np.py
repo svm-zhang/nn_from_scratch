@@ -12,7 +12,7 @@ def run():
         case "xor":
             solve_xor()
         case "mnist":
-            solve_mnist()
+            solve_mnist(args)
         case "mnist_torch":
             solve_mnist_with_torch()
         case _:
