@@ -62,8 +62,9 @@ def solve_mnist(args):
         for batch in batch_iterator:
             batch_x = np.stack([train_loader.ds[idx][0] for idx in batch])
             batch_y = np.stack([train_loader.ds[idx][1] for idx in batch])
+            model.train()
             optimizer.zero_grad()
-            output = model.train(batch_x)
+            output = model(batch_x)
             batch_y_true_idx = batch_y.argmax(axis=1)
             loss = loss_fn.loss(batch_y_true_idx, output)
             grad = loss_fn.loss_prime(batch_y_true_idx, output)
@@ -92,4 +93,4 @@ def solve_mnist(args):
         )
 
     accuracy = run_validation(test_loader, model)
-    print(f"Test accuracy: {accuracy:.3f}")
+    print(f"Test accuracy: {accuracy:.6f}")
