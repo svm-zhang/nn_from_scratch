@@ -33,14 +33,19 @@ class BaseModel(ABC):
     def name(self) -> str:
         return self.__class__.__name__.lower()
 
+    def __call__(self, input): ...
+
     @abstractmethod
-    def forward(self, input, train): ...
+    def train(self): ...
+
+    @abstractmethod
+    def eval(self): ...
+
+    @abstractmethod
+    def forward(self, input): ...
 
     @abstractmethod
     def backward(self, grad): ...
-
-    @abstractmethod
-    def train(self, input): ...
 
     @abstractmethod
     def state_dict(self) -> OrderedDict[str, Parameter]:
@@ -77,6 +82,7 @@ class CNNModel(BaseModel):
                 f"Invalid value for pooling method: {pool_method}"
             )
         self.pool_method = pool_method
+        self.training = False
         self._layers = []
         self._named_parameters = {}
         self._build()
@@ -139,20 +145,23 @@ class CNNModel(BaseModel):
         fc = Dense(fc_in, self.output_shape)
         self.add_layer(fc)
 
-    def forward(self, input, train: bool):
+    def __call__(self, input):
+        return self.forward(input)
+
+    def train(self):
+        self.training = True
+
+    def eval(self):
+        self.training = False
+
+    def forward(self, input):
         output = input
         for layer in self.layers:
             if isinstance(layer, BatchNorm1D):
-                output = layer.forward(output, train)
+                output = layer.forward(output, self.training)
             else:
                 output = layer.forward(output)
         return output
-
-    def train(self, input):
-        return self.forward(input, train=True)
-
-    def predict(self, input):
-        return self.forward(input, train=False)
 
     def backward(self, grad):
         for layer in self.layers[::-1]:
