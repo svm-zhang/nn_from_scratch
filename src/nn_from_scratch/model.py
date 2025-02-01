@@ -114,7 +114,7 @@ class CNNModel(BaseModel):
             k = self.ks[i]
             depth = self.depths[i]
             padding = self.paddings[i]
-            conv = Convolution(self.input_shape, k, depth, padding)
+            conv = Convolution(input_shape, k, depth, padding)
             self.add_layer(conv)
             input_shape = conv.output_shape
             # Add pooling layer if possible
