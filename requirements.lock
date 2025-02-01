@@ -10,6 +10,8 @@
 #   universal: false
 
 -e file:.
+altair==5.5.0
+    # via nn-from-scratch
 anyio==4.8.0
     # via httpx
     # via jupyter-server
@@ -36,6 +38,8 @@ beautifulsoup4==4.12.3
     # via nbconvert
 bleach==6.2.0
     # via nbconvert
+bokeh==3.6.2
+    # via nn-from-scratch
 certifi==2024.12.14
     # via httpcore
     # via httpx
@@ -49,6 +53,9 @@ coloredlogs==15.0.1
     # via jupynium
 comm==0.2.2
     # via ipykernel
+    # via ipywidgets
+contourpy==1.3.1
+    # via bokeh
 debugpy==1.8.12
     # via ipykernel
 decorator==5.1.1
@@ -96,13 +103,18 @@ ipykernel==6.29.5
     # via nbclassic
 ipython==8.31.0
     # via ipykernel
+    # via ipywidgets
 ipython-genutils==0.2.0
     # via nbclassic
+ipywidgets==8.1.5
+    # via nn-from-scratch
 isoduration==20.11.0
     # via jsonschema
 jedi==0.19.2
     # via ipython
 jinja2==3.1.4
+    # via altair
+    # via bokeh
     # via jupyter-server
     # via jupyterlab
     # via jupyterlab-server
@@ -115,6 +127,7 @@ json5==0.10.0
 jsonpointer==3.0.0
     # via jsonschema
 jsonschema==4.23.0
+    # via altair
     # via jupyter-events
     # via jupyterlab-server
     # via nbformat
@@ -153,6 +166,8 @@ jupyterlab-pygments==0.3.0
 jupyterlab-server==2.27.3
     # via jupyterlab
     # via notebook
+jupyterlab-widgets==3.0.13
+    # via ipywidgets
 markupsafe==3.0.2
     # via jinja2
     # via nbconvert
@@ -165,6 +180,8 @@ mpmath==1.3.0
     # via sympy
 msgpack==1.1.0
     # via pynvim
+narwhals==1.24.1
+    # via altair
 nbclassic==1.2.0
     # via nn-from-scratch
 nbclient==0.10.2
@@ -187,6 +204,8 @@ notebook-shim==0.2.4
     # via nbclassic
     # via notebook
 numpy==2.1.3
+    # via bokeh
+    # via contourpy
     # via nn-from-scratch
     # via numpy-typing
     # via pandas
@@ -200,6 +219,8 @@ outcome==1.3.0.post0
 overrides==7.7.0
     # via jupyter-server
 packaging==24.2
+    # via altair
+    # via bokeh
     # via ipykernel
     # via jupynium
     # via jupyter-server
@@ -207,6 +228,7 @@ packaging==24.2
     # via jupyterlab-server
     # via nbconvert
 pandas==2.2.3
+    # via bokeh
     # via nn-from-scratch
 pandocfilters==1.5.1
     # via nbconvert
@@ -217,10 +239,13 @@ persist-queue==1.0.0
 pexpect==4.9.0
     # via ipython
 pillow==11.0.0
+    # via bokeh
     # via torchvision
 platformdirs==4.3.6
     # via jupynium
     # via jupyter-core
+polars==1.21.0
+    # via nn-from-scratch
 prometheus-client==0.21.1
     # via jupyter-server
 prompt-toolkit==3.0.50
@@ -251,6 +276,7 @@ python-json-logger==3.2.1
 pytz==2024.2
     # via pandas
 pyyaml==6.0.2
+    # via bokeh
     # via jupyter-events
 pyzmq==26.2.0
     # via ipykernel
@@ -314,6 +340,7 @@ torch==2.5.1
 torchvision==0.20.1
     # via nn-from-scratch
 tornado==6.4.2
+    # via bokeh
     # via ipykernel
     # via jupyter-client
     # via jupyter-server
@@ -326,6 +353,7 @@ traitlets==5.14.3
     # via comm
     # via ipykernel
     # via ipython
+    # via ipywidgets
     # via jupyter-client
     # via jupyter-core
     # via jupyter-events
@@ -343,6 +371,7 @@ trio-websocket==0.11.1
 types-python-dateutil==2.9.0.20241206
     # via arrow
 typing-extensions==4.12.2
+    # via altair
     # via anyio
     # via async-lru
     # via ipython
@@ -370,5 +399,9 @@ webencodings==0.5.1
 websocket-client==1.8.0
     # via jupyter-server
     # via selenium
+widgetsnbextension==4.0.13
+    # via ipywidgets
 wsproto==1.2.0
     # via trio-websocket
+xyzservices==2025.1.0
+    # via bokeh
