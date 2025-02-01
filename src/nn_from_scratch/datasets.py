@@ -50,6 +50,49 @@ class MNIST:
         return self._input_shape
 
 
+class FashionMNIST:
+    def __init__(self, ds_dir: str):
+        transform = v2.Compose(
+            [v2.PILToTensor(), v2.ToDtype(torch.float, scale=True)]
+        )
+        transform_target = v2.Compose(
+            [
+                v2.Lambda(
+                    lambda y: torch.zeros(10, dtype=torch.float).scatter_(
+                        0, torch.tensor(y), value=1
+                    )
+                )
+            ]
+        )
+        transforms = {"train": transform, "test": transform}
+        target_transforms = {
+            "train": transform_target,
+            "test": transform_target,
+        }
+        self.data = {}
+        for split in ["train", "test"]:
+            self.data[split] = torchvision.datasets.FashionMNIST(
+                ds_dir,
+                download=True,
+                train=(split == "train"),
+                transform=transforms[split],
+                target_transform=target_transforms[split],
+            )
+        assert len(self.data["train"].classes) == len(
+            self.data["test"].classes
+        )
+        self._n_classes = len(self.data["train"].classes)
+        self._input_shape = self.data["train"][0][0].shape
+
+    @property
+    def n_classes(self):
+        return self._n_classes
+
+    @property
+    def input_shape(self):
+        return self._input_shape
+
+
 def extract_tensor(dataloader):
     xs = []
     ys = []
