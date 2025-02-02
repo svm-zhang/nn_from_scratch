@@ -49,7 +49,15 @@ def preload(model, optimizer, model_outp, epoch: str):
 
 
 # %%
-def train(train, val, model, optimizer, loss, epoch_range, model_outp):
+def train(
+    train_loader,
+    val_loader,
+    model,
+    optimizer,
+    loss_fn,
+    epoch_range,
+    model_outp,
+):
     assert len(epoch_range) == 2
     epoch_start, epoch_end = epoch_range
     assert epoch_start < epoch_end
